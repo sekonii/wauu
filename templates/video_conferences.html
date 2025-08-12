@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - WAUU LMS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-video me-2"></i>{{ title }}</h2>
+                {% if current_user.is_lecturer() %}
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-plus me-1"></i>Create Lecture Room
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for course in current_user.taught_courses %}
+                        <li><a class="dropdown-item" href="{{ url_for('create_lecture_room', course_id=course.id) }}">
+                            {{ course.code }} - {{ course.title }}
+                        </a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if lecture_rooms %}
+            <div class="row">
+                {% for room in lecture_rooms %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="card-title mb-0">{{ room.course.code }}</h6>
+                            {% if room.is_active %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-circle me-1"></i>Live
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">Scheduled</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">{{ room.title }}</h6>
+                            <p class="card-text text-muted small">{{ room.description[:100] }}{% if room.description|length > 100 %}...{% endif %}</p>
+                            
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>{{ room.lecturer.get_full_name() }}
+                                </small>
+                            </div>
+                            
+                            {% if room.scheduled_start %}
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ room.scheduled_start.strftime('%Y-%m-%d %H:%M') }}
+                                    {% if room.scheduled_end %}
+                                    - {{ room.scheduled_end.strftime('%H:%M') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>Created: {{ room.created_at.strftime('%Y-%m-%d') }}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group w-100" role="group">
+                                <a href="{{ url_for('lecture_room_detail', room_id=room.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-info-circle me-1"></i>Details
+                                </a>
+                                {% if room.is_active or current_user.is_lecturer() %}
+                                <a href="{{ url_for('join_lecture', room_id=room.id) }}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-video me-1"></i>Join
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center mt-5">
+                <i class="fas fa-video fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No lecture rooms found</h4>
+                {% if current_user.is_student() %}
+                <p class="text-muted">No scheduled lectures for your enrolled courses.</p>
+                {% elif current_user.is_lecturer() %}
+                <p class="text-muted">Create your first lecture room to get started!</p>
+                {% else %}
+                <p class="text-muted">No lecture rooms have been created yet.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

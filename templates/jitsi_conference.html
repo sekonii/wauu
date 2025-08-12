@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Meeting Header -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-9">
+                            <h4 class="mb-1">
+                                <i class="fas fa-video me-2"></i>{{ lecture_room.title }}
+                            </h4>
+                            <p class="text-muted mb-0">
+                                <strong>{{ lecture_room.course.code }}</strong> - {{ lecture_room.course.name }}
+                                | Lecturer: {{ lecture_room.lecturer.get_full_name() }}
+                                | Room: {{ lecture_room.room_name }}
+                            </p>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            {% if current_user.is_lecturer() and lecture_room.lecturer_id == current_user.id %}
+                            <a href="{{ url_for('end_lecture', room_id=lecture_room.id) }}" 
+                               class="btn btn-danger btn-sm me-2" 
+                               onclick="return confirm('Are you sure you want to end this lecture?')">
+                                <i class="fas fa-stop me-1"></i>End Lecture
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('video_conferences') }}" 
+                               class="btn btn-secondary btn-sm">
+                                <i class="fas fa-arrow-left me-1"></i>Back
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Conference Container -->
+            <div class="card">
+                <div class="card-body p-0">
+                    <div id="jitsi-meet-container" style="height: 75vh; width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Meeting Info -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-info-circle me-2"></i>Meeting Information</h6>
+                            <p class="mb-1"><strong>Room Name:</strong> {{ lecture_room.room_name }}</p>
+                            <p class="mb-1"><strong>Your Name:</strong> {{ user.get_full_name() }} ({{ user.role.title() }})</p>
+                            <p class="mb-1"><strong>Course:</strong> {{ lecture_room.course.code }}</p>
+                            {% if user.is_lecturer() and lecture_room.lecturer_id == user.id %}
+                            <p class="mb-0 text-success"><strong>Your Role:</strong> Moderator</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-users me-2"></i>Session Details</h6>
+                            {% if lecture_room.actual_start %}
+                            <p class="mb-1"><strong>Started:</strong> {{ lecture_room.actual_start.strftime('%H:%M on %B %d, %Y') }}</p>
+                            {% endif %}
+                            {% if lecture_room.scheduled_start %}
+                            <p class="mb-1"><strong>Scheduled:</strong> {{ lecture_room.scheduled_start.strftime('%H:%M on %B %d, %Y') }}</p>
+                            {% endif %}
+                            <p class="mb-0"><strong>Status:</strong> 
+                                {% if lecture_room.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load Jitsi Meet API -->
+<script src="https://meet.jit.si/external_api.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Room configuration
+    const roomName = 'WAUU_{{ lecture_room.room_name }}_{{ lecture_room.course.code }}';
+    const displayName = '{{ user.get_full_name() }}';
+    const userEmail = '{{ user.email }}';
+    const isLecturer = {{ 'true' if user.is_lecturer() and lecture_room.lecturer_id == user.id else 'false' }};
+    const isStudent = {{ 'true' if user.is_student() else 'false' }};
+
+    // Initialize Jitsi Meet
+    const domain = 'meet.jit.si';
+    const options = {
+        roomName: roomName,
+        width: '100%',
+        height: '100%',
+        parentNode: document.querySelector('#jitsi-meet-container'),
+        
+        // User configuration
+        userInfo: {
+            displayName: displayName,
+            email: userEmail
+        },
+        
+        // Basic configuration
+        configOverwrite: {
+            prejoinPageEnabled: false,
+            startWithAudioMuted: isStudent,
+            startWithVideoMuted: isStudent,
+            requireDisplayName: false,
+            enableWelcomePage: false,
+            enableClosePage: false,
+            disableDeepLinking: true
+        },
+        
+        // Interface customization
+        interfaceConfigOverwrite: {
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            MOBILE_APP_PROMO: false,
+            DISABLE_JOIN_LEAVE_NOTIFICATIONS: false
+        }
+    };
+
+    // Create the meeting
+    try {
+        const api = new JitsiMeetExternalAPI(domain, options);
+
+        // Handle meeting events
+        api.addEventListener('videoConferenceJoined', function () {
+            console.log('Successfully joined the meeting');
+            
+            // Grant moderator privileges to lecturer
+            if (isLecturer) {
+                setTimeout(function() {
+                    try {
+                        api.executeCommand('toggleModeration', true);
+                        console.log('Moderator privileges granted');
+                    } catch (e) {
+                        console.log('Could not grant moderator privileges:', e);
+                    }
+                }, 3000);
+            }
+        });
+
+        api.addEventListener('videoConferenceLeft', function () {
+            console.log('Left the meeting');
+            setTimeout(function() {
+                if (confirm('You have left the meeting. Return to video conferences?')) {
+                    window.location.href = '{{ url_for("video_conferences") }}';
+                }
+            }, 1000);
+        });
+
+        api.addEventListener('readyToClose', function () {
+            console.log('Meeting ended');
+            alert('The meeting has been ended.');
+            window.location.href = '{{ url_for("video_conferences") }}';
+        });
+
+        // Error handling
+        api.addEventListener('connectionFailed', function () {
+            console.error('Connection failed');
+            alert('Failed to connect to the video conference. Please check your internet connection and try again.');
+        });
+
+        api.addEventListener('error', function (error) {
+            console.error('Jitsi Meet error:', error);
+            alert('There was an error with the video conference. Please try refreshing the page.');
+        });
+
+    } catch (error) {
+        console.error('Failed to initialize Jitsi Meet:', error);
+        document.querySelector('#jitsi-meet-container').innerHTML = 
+            '<div class="alert alert-danger text-center">' +
+            '<h4>Unable to load video conference</h4>' +
+            '<p>There was an error loading the video conference. Please try refreshing the page.</p>' +
+            '<button class="btn btn-primary" onclick="location.reload()">Refresh Page</button>' +
+            '</div>';
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Create Lecture Room - WAUU LMS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-video me-2"></i>Create Lecture Room</h4>
+                    <p class="mb-0 text-muted">Course: {{ course.code }} - {{ course.title }}</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Lecture Title *</label>
+                            <input type="text" class="form-control" id="title" name="title" required 
+                                   placeholder="e.g., Introduction to Computer Architecture">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                      placeholder="Brief description of the lecture topic..."></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="scheduled_start" class="form-label">Scheduled Start Time</label>
+                                    <input type="datetime-local" class="form-control" id="scheduled_start" name="scheduled_start">
+                                    <div class="form-text">Optional: When the lecture is scheduled to begin</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="scheduled_end" class="form-label">Scheduled End Time</label>
+                                    <input type="datetime-local" class="form-control" id="scheduled_end" name="scheduled_end">
+                                    <div class="form-text">Optional: When the lecture is scheduled to end</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> A unique room name will be automatically generated for this lecture. 
+                            Students enrolled in this course will be able to join the lecture.
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('video_conferences') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-video me-1"></i>Create Lecture Room
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set minimum datetime to current time
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    const isoString = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('scheduled_start').min = isoString;
+    document.getElementById('scheduled_end').min = isoString;
+    
+    // Update end time minimum when start time changes
+    document.getElementById('scheduled_start').addEventListener('change', function() {
+        document.getElementById('scheduled_end').min = this.value;
+    });
+});
+</script>
+{% endblock %}

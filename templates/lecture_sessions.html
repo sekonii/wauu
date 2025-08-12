@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Lecture Session Logs - WAUU LMS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-chart-bar me-2"></i>Lecture Session Logs</h2>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="course" class="form-label">Course</label>
+                            <select class="form-select" name="course" id="course">
+                                <option value="">All Courses</option>
+                                {% for course in courses %}
+                                <option value="{{ course.id }}" {% if current_filters.course == course.id|string %}selected{% endif %}>
+                                    {{ course.code }} - {{ course.title }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="lecturer" class="form-label">Lecturer</label>
+                            <select class="form-select" name="lecturer" id="lecturer">
+                                <option value="">All Lecturers</option>
+                                {% for lecturer in lecturers %}
+                                <option value="{{ lecturer.id }}" {% if current_filters.lecturer == lecturer.id|string %}selected{% endif %}>
+                                    {{ lecturer.get_full_name() }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" name="date" id="date" value="{{ current_filters.date or '' }}">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-filter me-1"></i>Filter
+                            </button>
+                            <a href="{{ url_for('lecture_sessions') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Session Logs -->
+            {% if session_logs.items %}
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Participant</th>
+                                    <th>Lecture Room</th>
+                                    <th>Course</th>
+                                    <th>Joined At</th>
+                                    <th>Left At</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in session_logs.items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ log.participant.get_full_name() }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ log.participant.role.title() }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('lecture_room_detail', room_id=log.lecture_room.id) }}" class="text-decoration-none">
+                                            {{ log.lecture_room.title }}
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">{{ log.lecture_room.room_name }}</small>
+                                    </td>
+                                    <td>
+                                        {{ log.lecture_room.course.code }}
+                                        <br>
+                                        <small class="text-muted">{{ log.lecture_room.course.title[:30] }}{% if log.lecture_room.course.title|length > 30 %}...{% endif %}</small>
+                                    </td>
+                                    <td>
+                                        {{ log.joined_at.strftime('%Y-%m-%d') }}
+                                        <br>
+                                        <small class="text-muted">{{ log.joined_at.strftime('%H:%M:%S') }}</small>
+                                    </td>
+                                    <td>
+                                        {% if log.left_at %}
+                                        {{ log.left_at.strftime('%Y-%m-%d') }}
+                                        <br>
+                                        <small class="text-muted">{{ log.left_at.strftime('%H:%M:%S') }}</small>
+                                        {% else %}
+                                        <span class="text-success">Still in session</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.duration_minutes %}
+                                        {{ log.duration_minutes }} minutes
+                                        {% elif not log.left_at %}
+                                        <span class="text-success">In progress</span>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not log.left_at %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Completed</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if session_logs.pages > 1 %}
+            <nav aria-label="Session logs pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if session_logs.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('lecture_sessions', page=session_logs.prev_num, **current_filters) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in session_logs.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != session_logs.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('lecture_sessions', page=page_num, **current_filters) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if session_logs.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('lecture_sessions', page=session_logs.next_num, **current_filters) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center mt-5">
+                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No session logs found</h4>
+                <p class="text-muted">No lecture sessions match your current filters.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
